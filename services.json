@@ -1,0 +1,44 @@
+{
+  "brand": "Abdelrahman Ezzat",
+  "site": "https://status.abdelrahman-ezzat.com",
+  "services": [
+    {
+      "id": "portfolio",
+      "name": "Personal Portfolio",
+      "url": "https://abdelrahman-ezzat.com",
+      "check_url": "https://www.abdelrahman-ezzat.com",
+      "icon": "👤",
+      "group": "Personal"
+    },
+    {
+      "id": "ha",
+      "name": "Home Assistant",
+      "url": "https://ha.abdelrahman-ezzat.com",
+      "icon": "🏠",
+      "extra_ok": [401, 403],
+      "group": "Personal"
+    },
+    {
+      "id": "quneva",
+      "name": "QuNeva Platform",
+      "url": "https://quneva.com",
+      "check_url": "https://quneva.com/healthz",
+      "icon": "🌐",
+      "group": "QuNeva"
+    },
+    {
+      "id": "ai",
+      "name": "QuNeva AI",
+      "url": "https://ai.quneva.com",
+      "icon": "🤖",
+      "group": "QuNeva"
+    },
+    {
+      "id": "qstatus",
+      "name": "QuNeva Status Page",
+      "url": "https://status.quneva.com",
+      "icon": "📊",
+      "group": "QuNeva"
+    }
+  ]
+}

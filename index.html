@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0b0b0f" />
+<title>Abdelrahman Ezzat — System Status</title>
+<meta name="description" content="Real-time uptime, response-time and TLS certificate monitoring for Abdelrahman Ezzat and QuNeva services." />
+<link rel="canonical" href="https://status.abdelrahman-ezzat.com/" />
+<meta property="og:title" content="Abdelrahman Ezzat — System Status" />
+<meta property="og:description" content="Live uptime and security monitoring for all Abdelrahman Ezzat & QuNeva services." />
+<meta property="og:url" content="https://status.abdelrahman-ezzat.com" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://status.abdelrahman-ezzat.com/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://status.abdelrahman-ezzat.com/og.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="alternate" type="application/atom+xml" title="AE Status — incidents" href="/data/incidents.xml" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0b0b0f;
+  --panel:rgba(255,255,255,.04);
+  --panel-solid:#111827;
+  --border:rgba(255,255,255,.07);
+  --border-strong:rgba(255,255,255,.14);
+  --text:#f3f4f6;--muted:#9ca3af;
+  --teal:#14b8a6;--teal-deep:#0d7377;--gold:#c8a45c;
+  --green:#10b981;--green-bg:rgba(16,185,129,.12);
+  --yellow:#f59e0b;--yellow-bg:rgba(245,158,11,.12);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1100px 560px at 85% -12%,rgba(20,184,166,.14),transparent 60%),
+    radial-gradient(850px 480px at -12% 8%,rgba(13,115,119,.12),transparent 60%),
+    radial-gradient(700px 420px at 50% 115%,rgba(200,164,92,.06),transparent 65%),
+    var(--bg);
+  color:var(--text);
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"DM Sans","Inter",sans-serif}
+a{color:var(--teal);text-decoration:none}a:hover{text-decoration:underline}
+::selection{background:rgba(20,184,166,.3);color:#fff}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:10;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);background:rgba(11,11,15,.72);border-bottom:1px solid var(--border)}
+.nav-inner{max-width:980px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none}
+.brand:hover{text-decoration:none}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0d7377,#14b8a6);display:flex;align-items:center;justify-content:center;box-shadow:0 0 18px rgba(20,184,166,.35);flex-shrink:0}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.brand-name{font-family:"DM Sans",sans-serif;font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--text)}
+.brand-sub{font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;background:linear-gradient(135deg,#0d7377,#14b8a6,#c8a45c);-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav-links{display:flex;gap:20px;font-size:13px}
+.nav-links a{color:var(--muted);font-weight:500}.nav-links a:hover{color:var(--text);text-decoration:none}
+
+/* ---------- hero ---------- */
+.hero{max-width:980px;margin:0 auto;padding:56px 24px 30px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:9px;padding:8px 18px;border-radius:100px;font-size:13px;font-weight:600;margin-bottom:20px;backdrop-filter:blur(8px)}
+.badge-operational{background:var(--green-bg);color:var(--green);border:1px solid rgba(16,185,129,.28)}
+.badge-degraded{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.28)}
+.badge-outage{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.28)}
+.pulse,.dot-sm{border-radius:50%;background:currentColor;animation:pulse 2s infinite}
+.pulse{width:8px;height:8px}.dot-sm{width:6px;height:6px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.hero h1{font-size:2.4rem;font-weight:800;letter-spacing:-.03em;margin-bottom:12px}
+.hero h1 .grad{background:linear-gradient(135deg,#0d7377,#14b8a6,#5eead4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{font-size:.98rem;color:var(--muted);max-width:480px;margin:0 auto;line-height:1.7}
+.last-updated{font-size:11.5px;color:var(--muted);margin-top:14px;opacity:.7}
+.teal-line{height:2px;max-width:220px;margin:26px auto 0;background:linear-gradient(90deg,transparent,#0d7377,#14b8a6,#0d7377,transparent)}
+
+/* ---------- layout ---------- */
+.section{max-width:980px;margin:0 auto;padding:0 24px 46px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.section-title{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.section-hint{font-size:11px;color:var(--muted);opacity:.65}
+
+/* ---------- sla strip ---------- */
+.sla-strip{display:flex;gap:10px;flex-wrap:wrap}
+.sla-pill{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;padding:13px 16px;flex:1;min-width:125px;text-align:center;transition:border-color .3s ease}
+.sla-pill:hover{border-color:rgba(20,184,166,.3)}
+.sla-pill-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.sla-pill-value{font-family:"DM Sans",sans-serif;font-size:1.35rem;font-weight:800}
+
+/* ---------- service cards ---------- */
+.services-grid{display:grid;grid-template-columns:1fr;gap:14px}
+.service-card{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:13px;transition:transform .35s ease,border-color .35s ease,box-shadow .35s ease}
+.service-card:hover{transform:translateY(-2px);border-color:rgba(20,184,166,.28);box-shadow:0 0 25px rgba(20,184,166,.08)}
+.service-card.card-up{border-left:3px solid var(--green)}
+.service-card.card-down{border-left:3px solid var(--red)}
+.service-card.card-degraded{border-left:3px solid var(--yellow)}
+.service-card.card-checking{border-left:3px solid var(--border-strong)}
+.sc-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sc-left{display:flex;align-items:center;gap:12px;min-width:0}
+.service-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:rgba(20,184,166,.12);border:1px solid rgba(20,184,166,.15)}
+.service-name{font-family:"DM Sans",sans-serif;font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.service-group{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(200,164,92,.3);background:rgba(200,164,92,.08);border-radius:5px;padding:2px 6px}
+.service-url{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px}
+.service-url a{color:var(--muted)}.service-url a:hover{color:var(--teal)}
+
+.status-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:100px;font-size:11px;font-weight:600;white-space:nowrap}
+.chip-up{background:var(--green-bg);color:var(--green)}
+.chip-down{background:var(--red-bg);color:var(--red)}
+.chip-degraded{background:var(--yellow-bg);color:var(--yellow)}
+.chip-checking{background:rgba(156,163,175,.1);color:var(--muted)}
+
+.sc-bars{display:grid;grid-template-columns:repeat(40,1fr);align-items:end;gap:2px;height:46px}
+.bar{width:100%;border-radius:2px 2px 0 0;opacity:.92;cursor:help;background:var(--green);min-height:14px}
+.bar.down{background:var(--red)}
+.bar.slow{background:var(--yellow)}
+.bar.nodata{background:var(--border-strong);opacity:.35;height:35%}
+.bar:hover{opacity:1;filter:brightness(1.15)}
+.sc-bar-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted);opacity:.55}
+
+.sc-footer{display:flex;align-items:flex-start;justify-content:space-between;padding-top:11px;border-top:1px solid var(--border);gap:12px}
+.sc-ms{font-family:"DM Sans",sans-serif;font-size:20px;font-weight:800}
+.sc-ms-label,.sc-uptime-label{font-size:11px;color:var(--muted);margin-top:1px}
+.sc-uptime{text-align:right}
+.sc-uptime-pct{font-family:"DM Sans",sans-serif;font-size:18px;font-weight:800}
+.sc-quality{font-size:11px;color:var(--muted);margin-top:4px}.sc-quality span{font-weight:700}
+.sc-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.sc-meta-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.data-source{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2.5px 8px;border-radius:5px;font-weight:500;background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.18)}
+.ssl-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2.5px 8px;border-radius:5px;font-weight:600;border:1px solid}
+.ssl-ok{color:var(--green);background:var(--green-bg);border-color:rgba(16,185,129,.2)}
+.ssl-warn{color:var(--yellow);background:var(--yellow-bg);border-color:rgba(245,158,11,.25)}
+.ssl-bad{color:var(--red);background:var(--red-bg);border-color:rgba(239,68,68,.25)}
+.ssl-na{color:var(--muted);background:rgba(156,163,175,.08);border-color:var(--border)}
+.last-incident{font-size:10.5px;color:var(--muted)}.last-incident span{color:var(--green);font-weight:500}
+
+/* ---------- tooltip ---------- */
+.bar-tooltip{display:none;position:fixed;z-index:999;background:#0f172a;border:1px solid var(--border-strong);border-radius:10px;padding:10px 13px;font-size:11.5px;line-height:1.65;color:var(--text);pointer-events:none;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,.55);min-width:245px}
+.bar-tooltip.visible{display:block}
+.tt-date{color:var(--muted);font-size:10.5px;margin-bottom:3px}
+.tt-status{font-weight:700}.tt-status.up{color:var(--green)}.tt-status.down{color:var(--red)}.tt-status.slow{color:var(--yellow)}.tt-status.nodata{color:var(--muted)}
+.tt-row{display:flex;justify-content:space-between;gap:16px;font-size:11px;color:var(--muted);margin-top:1px}.tt-val{color:var(--text);font-weight:600}
+
+/* ---------- uptime table / metrics ---------- */
+.uptime-card,.incidents-card{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.uptime-row{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;gap:12px}
+.uptime-row:not(:last-child){border-bottom:1px solid var(--border)}
+.uptime-name{font-size:13px;font-weight:500;min-width:170px}
+.uptime-periods{display:flex;gap:20px;align-items:center;flex:1;justify-content:flex-end}
+.uptime-period{text-align:center;min-width:64px}
+.uptime-period-label{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.uptime-period-val{font-size:13px;font-weight:700;font-family:"DM Sans",sans-serif}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.metric-card{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;padding:16px 18px;transition:border-color .3s ease}
+.metric-card:hover{border-color:rgba(20,184,166,.3)}
+.metric-label{font-size:10.5px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.metric-value{font-family:"DM Sans",sans-serif;font-size:1.6rem;font-weight:800}
+.metric-sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+
+/* ---------- maintenance ---------- */
+.maint-banner{background:var(--yellow-bg);border:1px solid rgba(245,158,11,.28);border-left:3px solid var(--yellow);border-radius:14px;padding:15px 19px;display:flex;flex-direction:column;gap:10px}
+.maint-head{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:.06em}
+.maint-item{display:flex;gap:11px;align-items:flex-start}.maint-item:not(:last-child){padding-bottom:10px;border-bottom:1px solid rgba(245,158,11,.15)}
+.maint-icon{font-size:15px;flex-shrink:0}.maint-body{flex:1;min-width:0}
+.maint-title{font-size:13px;font-weight:600;color:var(--text)}.maint-title a{color:var(--text)}
+.maint-desc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.maint-time{font-size:11px;color:var(--muted);margin-top:3px}
+
+/* ---------- ssl banner ---------- */
+.ssl-banner{background:var(--red-bg);border:1px solid rgba(239,68,68,.3);border-left:3px solid var(--red);border-radius:14px;padding:14px 19px;font-size:13px;color:var(--text);display:flex;gap:10px;align-items:flex-start;line-height:1.6}
+.ssl-banner b{color:var(--red)}
+
+/* ---------- trend ---------- */
+.trend-card{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;padding:19px 19px 13px;position:relative}
+.trend-svg{width:100%;height:auto;display:block;overflow:visible}
+.trend-empty{text-align:center;color:var(--muted);font-size:13px;padding:26px}
+.trend-axis{fill:var(--muted);font-size:10px}
+.trend-legend{display:flex;justify-content:space-between;margin-top:8px;font-size:10.5px;color:var(--muted)}
+
+/* ---------- incidents ---------- */
+.incidents-card{padding:22px}
+.no-incidents{text-align:center;padding:30px;color:var(--muted);font-size:14px}
+.no-incidents-icon{font-size:28px;margin-bottom:8px;opacity:.5}
+.incident-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+.incident-item:last-child{border-bottom:none;padding-bottom:0}
+.incident-icon{font-size:18px;flex-shrink:0}
+.incident-body{flex:1}
+.incident-title{font-size:13px;font-weight:600;margin-bottom:4px}.incident-title a{color:var(--text)}
+.incident-meta{display:flex;gap:10px;flex-wrap:wrap}
+.incident-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px}
+.badge-open{background:var(--red-bg);color:var(--red)}
+.badge-closed{background:var(--green-bg);color:var(--green)}
+.badge-security{background:rgba(200,164,92,.12);color:var(--gold)}
+.incident-time{font-size:11px;color:var(--muted)}
+
+/* ---------- footer ---------- */
+footer{max-width:980px;margin:0 auto;padding:20px 24px 40px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.footer-left{display:flex;align-items:center;gap:9px}
+.footer-mark{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#0d7377,#14b8a6);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.footer-links{display:flex;gap:16px}.footer-links a{color:var(--muted)}.footer-links a:hover{color:var(--teal)}
+
+@media(prefers-reduced-motion:reduce){
+  .pulse,.dot-sm{animation:none}
+  *{transition:none!important;scroll-behavior:auto!important}
+}
+@media(max-width:640px){
+  .hero{padding-top:42px}.hero h1{font-size:1.7rem}
+  .nav-links{gap:12px}.nav-links a:nth-child(3){display:none}
+  .sla-pill{min-width:88px;padding:10px 10px}.sla-pill-value{font-size:1.05rem}
+  .sc-bars{gap:1px;height:42px}
+  .uptime-row{flex-direction:column;align-items:flex-start}
+  .uptime-name{min-width:unset;font-size:12px;color:var(--muted)}
+  .uptime-periods{width:100%;justify-content:space-between;gap:0}
+  .uptime-period{min-width:unset;flex:1}
+}
+</style>
+</head>
+
+<body>
+<noscript>
+  <div style="max-width:980px;margin:0 auto;padding:20px 24px;text-align:center;color:#9ca3af;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+    This status page needs JavaScript to show live data. You can still read the latest results in
+    <a href="data/status.json" style="color:#14b8a6">status.json</a> or on the
+    <a href="https://github.com/Abdelrahman-Ezzat-G/abdelrahman-ezzat-status" style="color:#14b8a6">repository</a>.
+  </div>
+</noscript>
+
+<div id="barTooltip" class="bar-tooltip">
+  <div class="tt-date" id="ttDate"></div>
+  <div class="tt-status" id="ttStatus"></div>
+  <div class="tt-row"><span>Uptime in window</span><span class="tt-val" id="ttWinUptime">—</span></div>
+  <div class="tt-row"><span>Quality in window</span><span class="tt-val" id="ttWinQuality">—</span></div>
+  <div class="tt-row"><span>Avg response</span><span class="tt-val" id="ttMs">—</span></div>
+  <div class="tt-row"><span>Best response</span><span class="tt-val" id="ttBest">—</span></div>
+  <div class="tt-row"><span>Worst response</span><span class="tt-val" id="ttWorst">—</span></div>
+  <div class="tt-row"><span>Checks</span><span class="tt-val" id="ttChecks">—</span></div>
+  <div class="tt-row"><span>Good / Slow / Down</span><span class="tt-val" id="ttMix">—</span></div>
+</div>
+
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M2.5 13h4l2.2-5.5 3.6 9.5 2.7-6.5 1.6 2.5h4.9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Abdelrahman Ezzat</span>
+        <span class="brand-sub">System Status</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">Portfolio</a>
+      <a href="https://www.quneva.com" target="_blank" rel="noopener">QuNeva</a>
+      <a href="mailto:abdelrahman-ezzat@outlook.com">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge badge-degraded" id="globalBadge" role="status" aria-live="polite"><span class="pulse"></span><span id="globalStatus">Loading status data…</span></div>
+  <h1>All services. <span class="grad">One glance.</span></h1>
+  <p>Real-time uptime, response-time and TLS certificate monitoring across every Abdelrahman Ezzat &amp; QuNeva service.</p>
+  <div class="last-updated" id="lastUpdated">Loading latest check…</div>
+  <div class="teal-line"></div>
+</div>
+
+<div class="section" id="sslSection" style="display:none;padding-bottom:20px">
+  <div id="sslBanner"></div>
+</div>
+
+<div class="section" id="maintenanceSection" style="display:none;padding-bottom:20px">
+  <div id="maintenanceBanner"></div>
+</div>
+
+<div class="section" style="padding-bottom:36px"><div class="sla-strip" id="slaStrip"></div></div>
+
+<div class="section">
+  <div class="section-header">
+    <h2 class="section-title">Services</h2>
+    <div class="section-hint">Hover bars for details · 6h per bar · 10 days</div>
+  </div>
+  <div class="services-grid" id="servicesGrid"></div>
+</div>
+
+<div class="section">
+  <h2 class="section-title" style="margin-bottom:14px">Uptime Summary</h2>
+  <div class="uptime-card" id="uptimeCard"></div>
+</div>
+
+<div class="section">
+  <h2 class="section-title" style="margin-bottom:14px">Response Times</h2>
+  <div class="metrics-grid" id="metricsGrid"></div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <h2 class="section-title">Response Time Trend</h2>
+    <div class="section-hint">Avg across all services · 6h buckets · 10 days</div>
+  </div>
+  <div class="trend-card" id="trendCard"></div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <h2 class="section-title">Recent Incidents</h2>
+    <a class="section-hint" href="data/incidents.xml" target="_blank" rel="noopener" style="text-decoration:none">🔔 Subscribe (RSS)</a>
+  </div>
+  <div class="incidents-card" id="incidentsCard">
+    <div class="no-incidents"><div class="no-incidents-icon">⏳</div><div>Loading incident history...</div></div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-left">
+    <span class="footer-mark" aria-hidden="true">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <path d="M2.5 13h4l2.2-5.5 3.6 9.5 2.7-6.5 1.6 2.5h4.9" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <span>© 2026 <a href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">Abdelrahman Ezzat</a> — Checks run automatically via GitHub Actions</span>
+  </div>
+  <div class="footer-links">
+    <a href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">Portfolio</a>
+    <a href="https://www.quneva.com" target="_blank" rel="noopener">QuNeva</a>
+    <a href="https://github.com/Abdelrahman-Ezzat-G/abdelrahman-ezzat-status" target="_blank" rel="noopener">Source</a>
+  </div>
+</footer>
+
+<script>
+const BAR_COUNT = 40;
+const BAR_WINDOW_MS = 6 * 60 * 60 * 1000;
+const GOOD_LIMIT_MS = 800;
+
+let SERVICES = [];          // loaded from services.json (single source of truth)
+let CSV_COLS = {};          // id -> column index, resolved from the CSV header row
+
+const authoritative = {};   // current status from status.json (written by Actions)
+const csvLatest = {};       // fallback: current status derived from the newest CSV row
+const uptimePct = {};
+const qualityPct = {};
+const barHistory = {};
+let allRows = [];
+
+/* --- Security helpers: prevent XSS from externally-sourced data --- */
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+function safeUrl(u){
+  return (typeof u === 'string' && /^https:\/\/github\.com\//.test(u)) ? u : '#';
+}
+
+async function loadServices(){
+  const res = await fetch('services.json?_=' + Date.now(), {cache:'no-cache'});
+  const cfg = await res.json();
+  SERVICES = cfg.services;
+}
+
+function parseCSV(text){
+  const lines = text.trim().split('\n').filter(Boolean);
+  if(!lines.length) return [];
+  // Column positions come from the header, so re-ordering or adding services
+  // never silently misreads old rows.
+  const header = lines[0].split(',');
+  SERVICES.forEach(s => {
+    const idx = header.indexOf(s.id + '_result');
+    if(idx > 0) CSV_COLS[s.id] = idx;
+  });
+  return lines.slice(1)
+    .map(l => l.split(','))
+    .filter(r => r.length === header.length && !isNaN(new Date(r[0]).getTime()))
+    .sort((a,b) => new Date(a[0]) - new Date(b[0]));
+}
+
+function classifyCheck(row,colIdx){
+  const result = row[colIdx]?.trim();
+  const sec = parseFloat(row[colIdx + 2]);
+  const ms = !isNaN(sec) && sec > 0 ? Math.round(sec * 1000) : null;
+
+  // 'down' means unreachable only — latency never counts against uptime.
+  // Slowness is reflected in the quality score, bar colour and bar height.
+  if(result === 'down') return { type:'down', ms };
+  if(ms !== null && ms >= GOOD_LIMIT_MS) return { type:'slow', ms };
+  return { type:'good', ms };
+}
+
+function calcUptimePeriod(rows,colIdx,daysAgo){
+  const cutoff = Date.now() - daysAgo * 86400000;
+  const filtered = rows.filter(r => new Date(r[0]).getTime() >= cutoff);
+  if(!filtered.length) return null;
+  let up = 0;
+  filtered.forEach(r => {
+    const c = classifyCheck(r,colIdx);
+    if(c.type !== 'down') up++;
+  });
+  return ((up / filtered.length) * 100).toFixed(1);
+}
+
+function calcQualityPeriod(rows,colIdx,daysAgo){
+  const cutoff = Date.now() - daysAgo * 86400000;
+  const filtered = rows.filter(r => new Date(r[0]).getTime() >= cutoff);
+  if(!filtered.length) return null;
+  let score = 0;
+  filtered.forEach(r => {
+    const c = classifyCheck(r,colIdx);
+    if(c.type === 'good') score += 1;
+    else if(c.type === 'slow') score += 0.5;
+  });
+  return ((score / filtered.length) * 100).toFixed(1);
+}
+
+function buildGradientVertical(good, slow, down){
+  const total = good + slow + down;
+  if(!total) return null;
+
+  const parts = [
+    { count: good, color: 'var(--green)' },
+    { count: slow, color: 'var(--yellow)' },
+    { count: down, color: 'var(--red)' }
+  ].filter(p => p.count > 0);
+
+  let start = 0;
+  const stops = [];
+  parts.forEach((p, index) => {
+    const height = (p.count / total) * 100;
+    const end = index === parts.length - 1 ? 100 : start + height;
+    stops.push(`${p.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+    start = end;
+  });
+
+  return `linear-gradient(to top, ${stops.join(', ')})`;
+}
+
+function buildBarHistory(rows,colIdx){
+  const now = Date.now();
+  const bars = [];
+
+  for(let i = BAR_COUNT - 1; i >= 0; i--){
+    const winEnd = now - i * BAR_WINDOW_MS;
+    const winStart = winEnd - BAR_WINDOW_MS;
+
+    const bucket = rows.filter(r => {
+      const ts = new Date(r[0]).getTime();
+      return ts >= winStart && ts < winEnd;
+    });
+
+    if(!bucket.length){
+      bars.push({
+        state:'nodata', avgMs:null, bestMs:null, worstMs:null, checks:0,
+        good:0, slow:0, down:0, uptime:null, quality:null, winStart, winEnd, gradient:null
+      });
+      continue;
+    }
+
+    let good = 0, slow = 0, down = 0;
+    const times = [];
+
+    bucket.forEach(r => {
+      const c = classifyCheck(r,colIdx);
+      if(c.type === 'down') down++;
+      else if(c.type === 'slow') slow++;
+      else good++;
+      if(c.ms !== null) times.push(c.ms);
+    });
+
+    const checks = bucket.length;
+    const avgMs = times.length ? Math.round(times.reduce((a,b)=>a+b,0) / times.length) : null;
+    const bestMs = times.length ? Math.min(...times) : null;
+    const worstMs = times.length ? Math.max(...times) : null;
+    const uptime = ((good + slow) / checks) * 100;
+    const quality = ((good + slow * 0.5) / checks) * 100;
+
+    let state = 'up';
+    if(down > 0) state = 'down';
+    else if(slow > 0) state = 'slow';
+
+    bars.push({
+      state, avgMs, bestMs, worstMs, checks, good, slow, down,
+      uptime, quality, winStart, winEnd,
+      gradient: buildGradientVertical(good, slow, down)
+    });
+  }
+
+  return bars;
+}
+
+const tooltip = document.getElementById('barTooltip');
+const ttDate = document.getElementById('ttDate');
+const ttStatus = document.getElementById('ttStatus');
+const ttWinUptime = document.getElementById('ttWinUptime');
+const ttWinQuality = document.getElementById('ttWinQuality');
+const ttMs = document.getElementById('ttMs');
+const ttBest = document.getElementById('ttBest');
+const ttWorst = document.getElementById('ttWorst');
+const ttChecks = document.getElementById('ttChecks');
+const ttMix = document.getElementById('ttMix');
+
+function showTooltip(e,bar){
+  if(bar.winStart && bar.winEnd){
+    const d1 = new Date(bar.winStart);
+    const d2 = new Date(bar.winEnd);
+    ttDate.textContent =
+      d1.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' ' +
+      d1.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) +
+      ' → ' +
+      d2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  } else {
+    ttDate.textContent = 'No historical record';
+  }
+
+  ttStatus.textContent =
+    bar.state === 'up' ? '✅ Stable / Good' :
+    bar.state === 'slow' ? '🟠 Slow response detected' :
+    bar.state === 'down' ? '🔴 Outage detected' :
+    '⬜ No data';
+
+  ttStatus.className = 'tt-status ' + bar.state;
+  ttWinUptime.textContent = bar.uptime !== null ? bar.uptime.toFixed(1) + '%' : '—';
+  ttWinQuality.textContent = bar.quality !== null ? bar.quality.toFixed(1) + '%' : '—';
+  ttMs.textContent = bar.avgMs !== null ? bar.avgMs + ' ms' : '—';
+  ttBest.textContent = bar.bestMs !== null ? bar.bestMs + ' ms' : '—';
+  ttWorst.textContent = bar.worstMs !== null ? bar.worstMs + ' ms' : '—';
+  ttChecks.textContent = bar.checks ? bar.checks + (bar.checks === 1 ? ' check' : ' checks') : '—';
+  ttMix.textContent = bar.checks ? `${bar.good} / ${bar.slow} / ${bar.down}` : '—';
+
+  tooltip.classList.add('visible');
+  positionTooltip(e);
+}
+
+function positionTooltip(e){
+  const TW = tooltip.offsetWidth || 250;
+  const TH = tooltip.offsetHeight || 140;
+  let x = e.clientX + 12;
+  let y = e.clientY - TH - 8;
+  if(x + TW > window.innerWidth - 8) x = e.clientX - TW - 12;
+  if(y < 8) y = e.clientY + 16;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+document.addEventListener('mousemove',e => { if(tooltip.classList.contains('visible')) positionTooltip(e); });
+// Tapping anywhere that isn't a bar dismisses the tooltip (touch devices).
+document.addEventListener('touchstart', hideTooltip);
+function hideTooltip(){ tooltip.classList.remove('visible'); }
+
+function renderBars(svcId){
+  const history = barHistory[svcId];
+  if(!history) {
+    return Array(BAR_COUNT).fill(0).map(() => `<div class="bar nodata" style="height:35%"></div>`).join('');
+  }
+
+  return history.map((bar,i) => {
+    let cls = 'bar';
+    if(bar.state === 'down') cls = 'bar down';
+    else if(bar.state === 'slow') cls = 'bar slow';
+    else if(bar.state === 'nodata') cls = 'bar nodata';
+
+    let h = 100;
+    if(bar.state === 'nodata'){
+      h = 35;
+    } else if(bar.avgMs !== null){
+      if(bar.avgMs < 300) h = 100;
+      else if(bar.avgMs < 600) h = 88;
+      else if(bar.avgMs < 1000) h = 74;
+      else if(bar.avgMs < 1500) h = 58;
+      else h = 42;
+    }
+
+    const bg = bar.gradient ? `background:${bar.gradient};` : '';
+    return `<div class="${cls}" style="height:${h}%;${bg}" data-svc="${svcId}" data-idx="${i}"></div>`;
+  }).join('');
+}
+
+function attachBarEvents(){
+  document.querySelectorAll('.bar[data-svc]').forEach(el => {
+    const svcId = el.dataset.svc;
+    const idx = parseInt(el.dataset.idx,10);
+    el.addEventListener('mouseenter', e => {
+      const bar = barHistory[svcId]?.[idx];
+      if(bar) showTooltip(e,bar);
+    });
+    el.addEventListener('mouseleave', hideTooltip);
+    el.addEventListener('touchstart', e => {
+      e.stopPropagation();   // keep the document handler from immediately hiding it
+      const bar = barHistory[svcId]?.[idx];
+      const t = e.touches[0];
+      if(bar && t) showTooltip({clientX:t.clientX, clientY:t.clientY}, bar);
+    }, {passive:true});
+  });
+}
+
+function msColor(ms){
+  if(!ms) return 'var(--muted)';
+  if(ms < 800) return 'var(--green)';
+  if(ms < 1500) return 'var(--yellow)';
+  return 'var(--red)';
+}
+function scoreColor(score){
+  if(score === null || score === undefined) return 'var(--muted)';
+  if(score >= 99) return 'var(--green)';
+  if(score >= 95) return 'var(--yellow)';
+  return 'var(--red)';
+}
+function fmtPct(v){ return v === null || v === undefined ? '—' : Number(v).toFixed(1).replace('.0','') + '%'; }
+function fmtMs(ms){ return ms ? ms + 'ms' : '—'; }
+
+function sslChip(svc){
+  const auth = authoritative[svc.id];
+  const days = auth?.ssl_days_left;
+  if(days === null || days === undefined) return `<span class="ssl-chip ssl-na">🔒 SSL —</span>`;
+  const cls = days > 21 ? 'ssl-ok' : days > 7 ? 'ssl-warn' : 'ssl-bad';
+  return `<span class="ssl-chip ${cls}" title="TLS certificate expires ${escapeHtml(auth.ssl_expires || '')}">🔒 SSL ${days}d</span>`;
+}
+
+function renderSSLBanner(){
+  const section = document.getElementById('sslSection');
+  const banner = document.getElementById('sslBanner');
+  const expiring = SERVICES
+    .map(s => ({ s, d: authoritative[s.id]?.ssl_days_left }))
+    .filter(x => x.d !== null && x.d !== undefined && x.d <= 14);
+  if(!expiring.length){ section.style.display = 'none'; return; }
+  const list = expiring.map(x => `<b>${escapeHtml(x.s.name)}</b> (${x.d} day${x.d === 1 ? '' : 's'} left)`).join(', ');
+  banner.innerHTML = `<div class="ssl-banner"><span aria-hidden="true">🔐</span><div><b>TLS certificate warning:</b> ${list}. Renew before expiry to avoid an outage.</div></div>`;
+  section.style.display = '';
+}
+
+function renderSLA(){
+  const strip = document.getElementById('slaStrip');
+  const periods = [7,30,90];
+  const labels = ['7-Day','30-Day','90-Day'];
+
+  const html = periods.map((days,i) => {
+    const vals = SERVICES.map(s => uptimePct[s.id]?.[`d${days}`]).filter(v => v !== null && v !== undefined);
+    const avg = vals.length ? (vals.reduce((a,b) => a + parseFloat(b),0) / vals.length) : null;
+    return `<div class="sla-pill">
+      <div class="sla-pill-label">${labels[i]} Uptime</div>
+      <div class="sla-pill-value" style="color:${scoreColor(avg)}">${fmtPct(avg)}</div>
+    </div>`;
+  }).join('');
+
+  const qVals = SERVICES.map(s => qualityPct[s.id]?.d7).filter(v => v !== null && v !== undefined);
+  const qAvg = qVals.length ? (qVals.reduce((a,b) => a + parseFloat(b),0) / qVals.length) : null;
+
+  const sslVals = SERVICES.map(s => authoritative[s.id]?.ssl_days_left).filter(v => v !== null && v !== undefined);
+  const sslMin = sslVals.length ? Math.min(...sslVals) : null;
+  const sslColor = sslMin === null ? 'var(--muted)' : sslMin > 21 ? 'var(--green)' : sslMin > 7 ? 'var(--yellow)' : 'var(--red)';
+
+  strip.innerHTML = html + `
+    <div class="sla-pill">
+      <div class="sla-pill-label">7-Day Quality</div>
+      <div class="sla-pill-value" style="color:${scoreColor(qAvg)}">${fmtPct(qAvg)}</div>
+    </div>
+    <div class="sla-pill">
+      <div class="sla-pill-label">SSL Health</div>
+      <div class="sla-pill-value" style="color:${sslColor}">${sslMin === null ? '—' : sslMin + 'd'}</div>
+    </div>`;
+}
+
+function renderGrid(){
+  const grid = document.getElementById('servicesGrid');
+
+  grid.innerHTML = SERVICES.map(svc => {
+    const auth = authoritative[svc.id];
+    const fallback = csvLatest[svc.id];
+
+    let isUp, isChecking, displayMs, sourceLabel;
+    if(auth){
+      isUp = auth.status === 'up';
+      isChecking = false;
+      displayMs = Math.round(auth.response_time_s * 1000);
+      sourceLabel = `<span class="data-source">⚡ Live via Actions</span>`;
+    } else if(fallback){
+      isUp = fallback.status === 'up';
+      isChecking = false;
+      displayMs = Math.round(fallback.response_time_s * 1000);
+      sourceLabel = `<span class="data-source">📄 Latest record</span>`;
+    } else {
+      isUp = true; isChecking = true; displayMs = null; sourceLabel = '';
+    }
+
+    const q90 = qualityPct[svc.id]?.d90;
+
+    const hist = barHistory[svc.id] || [];
+
+    // The chip reflects the LATEST check only — history (including transient
+    // blips inside the current 6h window) is told by the bars, not the chip.
+    const isCurrentSlow = isUp && displayMs !== null && displayMs >= GOOD_LIMIT_MS;
+    const isCurrentDown = !isUp;
+
+    const cardClass = isChecking ? 'card-checking' : (isCurrentDown ? 'card-down' : isCurrentSlow ? 'card-degraded' : 'card-up');
+    const chipClass = isChecking ? 'chip-checking' : (isCurrentDown ? 'chip-down' : isCurrentSlow ? 'chip-degraded' : 'chip-up');
+    const chipText = isChecking ? 'Checking…' : (isCurrentDown ? 'Disruption' : isCurrentSlow ? 'Operational · Slow now' : 'Operational');
+
+    const pct90 = uptimePct[svc.id]?.d90;
+    const uptimeDisp = fmtPct(pct90 ?? 100);
+    const uColor = scoreColor(pct90 ?? 100);
+    const qDisp = fmtPct(q90 ?? 100);
+    const qColor = scoreColor(q90 ?? 100);
+
+    const lastDown = [...hist].reverse().find(b => b.state === 'down');
+    const lastIncidentHtml = lastDown
+      ? `<span class="last-incident">Last incident: <span style="color:var(--yellow)">${new Date(lastDown.winStart).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</span></span>`
+      : `<span class="last-incident">Last incident: <span>None</span></span>`;
+
+    const firstReal = hist.find(b => b.winStart && b.state !== 'nodata');
+    const rangeLabel = firstReal ? new Date(firstReal.winStart).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '';
+
+    const displayHost = svc.url.replace('https://','');
+
+    return `<div class="service-card ${cardClass}">
+      <div class="sc-header">
+        <div class="sc-left">
+          <div class="service-icon" aria-hidden="true">${svc.icon || '🌐'}</div>
+          <div>
+            <div class="service-name">${escapeHtml(svc.name)}${svc.group ? `<span class="service-group">${escapeHtml(svc.group)}</span>` : ''}</div>
+            <div class="service-url"><a href="${escapeHtml(svc.url)}" target="_blank" rel="noopener">${escapeHtml(displayHost)}</a></div>
+          </div>
+        </div>
+        <div class="status-chip ${chipClass}"><span class="dot-sm"></span>${chipText}</div>
+      </div>
+
+      <div class="sc-bars-wrap">
+        <div class="sc-bars" role="img" aria-label="${escapeHtml(svc.name)} uptime history over the last 10 days: ${uptimeDisp} (90-day)">${renderBars(svc.id)}</div>
+        <div class="sc-bar-labels"><span>${rangeLabel}</span><span>Now</span></div>
+      </div>
+
+      <div class="sc-footer">
+        <div>
+          <div class="sc-ms" style="color:${msColor(displayMs)}">${fmtMs(displayMs)}</div>
+          <div class="sc-ms-label">Current response</div>
+        </div>
+        <div class="sc-uptime">
+          <div class="sc-uptime-pct" style="color:${uColor}">${uptimeDisp}</div>
+          <div class="sc-uptime-label">90-day uptime</div>
+          <div class="sc-quality">Quality: <span style="color:${qColor}">${qDisp}</span></div>
+        </div>
+      </div>
+
+      <div class="sc-meta"><span class="sc-meta-left">${sourceLabel}${sslChip(svc)}</span>${lastIncidentHtml}</div>
+    </div>`;
+  }).join('');
+
+  attachBarEvents();
+}
+
+function renderUptime(){
+  document.getElementById('uptimeCard').innerHTML = SERVICES.map(svc => {
+    const p = uptimePct[svc.id] || {};
+    const q = qualityPct[svc.id] || {};
+    const row = [['7d Up',p.d7],['30d Up',p.d30],['90d Up',p.d90],['7d Quality',q.d7]].map(([lbl,val]) => {
+      const v = val ?? 100;
+      return `<div class="uptime-period">
+        <div class="uptime-period-label">${lbl}</div>
+        <div class="uptime-period-val" style="color:${scoreColor(v)}">${fmtPct(v)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="uptime-row"><div class="uptime-name">${escapeHtml(svc.name)}</div><div class="uptime-periods">${row}</div></div>`;
+  }).join('');
+}
+
+function renderMetrics(){
+  const allMs = SERVICES.map(s => {
+    const a = authoritative[s.id] || csvLatest[s.id];
+    return a ? Math.round(a.response_time_s * 1000) : null;
+  }).filter(Boolean);
+
+  const avg = allMs.length ? Math.round(allMs.reduce((a,b)=>a+b,0)/allMs.length) : null;
+  const fastest = allMs.length ? Math.min(...allMs) : null;
+  const slowest = allMs.length ? Math.max(...allMs) : null;
+
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const checksToday = allRows.filter(r => new Date(r[0]) >= todayStart).length;
+
+  const qVals = SERVICES.map(s => qualityPct[s.id]?.d7).filter(v => v !== null && v !== undefined);
+  const qAvg = qVals.length ? (qVals.reduce((a,b)=>a+parseFloat(b),0)/qVals.length) : null;
+
+  document.getElementById('metricsGrid').innerHTML = `
+  <div class="metric-card"><div class="metric-label">Avg Response</div><div class="metric-value" style="color:${msColor(avg)}">${fmtMs(avg)}</div><div class="metric-sub">All services now</div></div>
+  <div class="metric-card"><div class="metric-label">Fastest</div><div class="metric-value" style="color:var(--green)">${fmtMs(fastest)}</div><div class="metric-sub">Best endpoint</div></div>
+  <div class="metric-card"><div class="metric-label">Slowest</div><div class="metric-value" style="color:${msColor(slowest)}">${fmtMs(slowest)}</div><div class="metric-sub">Worst endpoint</div></div>
+  <div class="metric-card"><div class="metric-label">7-Day Quality</div><div class="metric-value" style="color:${scoreColor(qAvg)}">${fmtPct(qAvg)}</div><div class="metric-sub">Penalizes slow periods</div></div>
+  <div class="metric-card"><div class="metric-label">Checks Today</div><div class="metric-value" style="color:var(--teal)">${checksToday}</div><div class="metric-sub">History rows today</div></div>
+  <div class="metric-card"><div class="metric-label">Total Records</div><div class="metric-value" style="color:var(--teal)">${allRows.length}</div><div class="metric-sub">In history</div></div>`;
+}
+
+function renderGlobal(){
+  const badge = document.getElementById('globalBadge');
+  const text = document.getElementById('globalStatus');
+  const current = SERVICES.map(s => authoritative[s.id] || csvLatest[s.id]).filter(Boolean);
+  const anyDown = current.some(r => r.status === 'down');
+
+  if(!current.length){
+    badge.className = 'hero-badge badge-degraded';
+    text.textContent = 'Monitoring warming up — first check pending';
+  } else if(anyDown){
+    badge.className = 'hero-badge badge-outage';
+    text.textContent = 'Partial Outage Detected';
+  } else {
+    badge.className = 'hero-badge badge-operational';
+    text.textContent = 'All Systems Operational';
+  }
+}
+function updateTimestamp(src){
+  document.getElementById('lastUpdated').textContent =
+    'Last checked: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    + ' · ' + src + ' · Checks run every 10 minutes';
+}
+
+async function fetchStatusJSON(){
+  try{
+    const res = await fetch('data/status.json?_=' + Date.now(), {cache:'no-cache'});
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data.services){
+      Object.entries(data.services).forEach(([id,svc]) => authoritative[id] = svc);
+      if(data.timestamp) updateTimestamp('Actions ' + data.timestamp);
+    }
+  } catch(e){ console.warn('status.json unavailable', e.message); }
+}
+
+function recentMonthKeys(n){
+  const now = new Date();
+  const keys = [];
+  for(let i = 0; i < n; i++){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`);
+  }
+  return keys;
+}
+
+async function fetchCSVText(src){
+  try{
+    const res = await fetch(src + '?_=' + Date.now(), {cache:'no-cache'});
+    return res.ok ? await res.text() : '';
+  } catch(e){ return ''; }
+}
+
+// Past-month archives don't change between refreshes, so fetch them once.
+let archiveTextsCache = null;
+async function loadArchiveTexts(){
+  if(archiveTextsCache) return archiveTextsCache;
+  // Prefer the manifest of archives that actually exist; fall back to guessing
+  // the recent months if it's unavailable.
+  let months;
+  try{
+    const res = await fetch('data/archives.json?_=' + Date.now(), {cache:'no-cache'});
+    months = res.ok ? await res.json() : null;
+  } catch(e){ months = null; }
+  if(!Array.isArray(months) || !months.length) months = recentMonthKeys(4);
+  // Only the most recent months are needed for the 90-day window.
+  const recent = months.slice(-4);
+  const texts = await Promise.all(recent.map(m => fetchCSVText(`data/history-archive-${m}.csv`)));
+  archiveTextsCache = texts.filter(Boolean);
+  return archiveTextsCache;
+}
+
+async function fetchHistoryCSV(){
+  try{
+    // The live file holds only the most recent rows; monthly archives extend the
+    // window so 30/90-day figures reflect real data.
+    const [liveText, archiveTexts] = await Promise.all([fetchCSVText('data/history.csv'), loadArchiveTexts()]);
+
+    const byTs = new Map();
+    archiveTexts.forEach(t => parseCSV(t).forEach(r => byTs.set(r[0], r)));
+    if(liveText) parseCSV(liveText).forEach(r => byTs.set(r[0], r));
+    allRows = [...byTs.values()].sort((a,b) => new Date(a[0]) - new Date(b[0]));
+    if(!allRows.length) return;
+
+    const lastRow = allRows[allRows.length - 1];
+    for(const [id,colIdx] of Object.entries(CSV_COLS)){
+      uptimePct[id] = {
+        d7: calcUptimePeriod(allRows,colIdx,7),
+        d30: calcUptimePeriod(allRows,colIdx,30),
+        d90: calcUptimePeriod(allRows,colIdx,90),
+      };
+      qualityPct[id] = {
+        d7: calcQualityPeriod(allRows,colIdx,7),
+        d30: calcQualityPeriod(allRows,colIdx,30),
+        d90: calcQualityPeriod(allRows,colIdx,90),
+      };
+      barHistory[id] = buildBarHistory(allRows,colIdx);
+
+      const result = lastRow[colIdx]?.trim();
+      if(result){
+        const sec = parseFloat(lastRow[colIdx + 2]);
+        csvLatest[id] = {
+          status: result === 'down' ? 'down' : 'up',
+          response_time_s: isNaN(sec) ? 0 : sec,
+        };
+      }
+    }
+  } catch(e){ console.warn('history unavailable', e.message); }
+}
+
+async function fetchIncidents(){
+  const card = document.getElementById('incidentsCard');
+  try{
+    const res = await fetch('data/incidents.json?_=' + Date.now(), {cache:'no-cache'});
+    if(!res.ok) throw new Error('incidents.json unavailable');
+    const all = await res.json();
+
+    if(!Array.isArray(all) || !all.length){
+      card.innerHTML = `<div class="no-incidents"><div class="no-incidents-icon">✅</div><div>No incidents reported in the last 30 days.</div></div>`;
+      return;
+    }
+
+    card.innerHTML = all.map(issue => {
+      const isOpen = issue.state === 'open';
+      const isSecurity = /^\[Security\]/i.test(String(issue.title || ''));
+      const created = new Date(issue.created_at);
+      const dateStr = created.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      let durationStr = '';
+      if(!isOpen && issue.closed_at){
+        const mins = Math.round((new Date(issue.closed_at) - created) / 60000);
+        durationStr = mins < 60 ? ` · ${mins}m duration` : ` · ${Math.round(mins/60)}h ${mins%60}m duration`;
+      }
+      const title = escapeHtml(String(issue.title || '').replace(/^\[(Incident|Security)\]\s*/i,''));
+      const url = safeUrl(issue.html_url);
+      const icon = isSecurity ? '🔐' : (isOpen ? '🔴' : '✅');
+      const secBadge = isSecurity ? `<span class="incident-badge badge-security">Security</span>` : '';
+      return `<div class="incident-item">
+        <div class="incident-icon" aria-hidden="true">${icon}</div>
+        <div class="incident-body">
+          <div class="incident-title"><a href="${url}" target="_blank" rel="noopener">${title}</a></div>
+          <div class="incident-meta">${secBadge}<span class="incident-badge ${isOpen ? 'badge-open' : 'badge-closed'}">${isOpen ? 'Ongoing' : 'Resolved'}</span><span class="incident-time">${dateStr}${durationStr}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    card.innerHTML = `<div class="no-incidents"><div class="no-incidents-icon">⚠️</div><div>Could not load incident history.</div></div>`;
+  }
+}
+
+async function fetchMaintenance(){
+  const section = document.getElementById('maintenanceSection');
+  const banner = document.getElementById('maintenanceBanner');
+  try{
+    const res = await fetch('data/maintenance.json?_=' + Date.now(), {cache:'no-cache'});
+    if(!res.ok) throw new Error('maintenance.json unavailable');
+    const items = await res.json();
+    if(!Array.isArray(items) || !items.length){ section.style.display = 'none'; return; }
+
+    banner.innerHTML = `<div class="maint-banner">
+      <div class="maint-head"><span aria-hidden="true">🛠️</span> Scheduled Maintenance</div>
+      ${items.map(m => {
+        const when = new Date(m.created_at);
+        const dateStr = when.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + when.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        const title = escapeHtml(m.title || 'Maintenance');
+        const url = safeUrl(m.html_url);
+        const desc = m.body ? `<div class="maint-desc">${escapeHtml(m.body)}</div>` : '';
+        return `<div class="maint-item">
+          <div class="maint-icon" aria-hidden="true">🗓️</div>
+          <div class="maint-body">
+            <div class="maint-title"><a href="${url}" target="_blank" rel="noopener">${title}</a></div>
+            ${desc}
+            <div class="maint-time">Posted ${dateStr}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+    section.style.display = '';
+  } catch(e){ section.style.display = 'none'; }
+}
+
+function renderTrend(){
+  const card = document.getElementById('trendCard');
+  const svcIds = SERVICES.map(s => s.id).filter(id => barHistory[id]);
+  const n = BAR_COUNT;
+  const pts = [];
+  for(let i = 0; i < n; i++){
+    const vals = [];
+    svcIds.forEach(id => { const b = barHistory[id][i]; if(b && b.avgMs != null) vals.push(b.avgMs); });
+    const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : null;
+    const ref = svcIds.map(id => barHistory[id][i]).find(Boolean);
+    pts.push({ i, avg, winStart: ref?.winStart, winEnd: ref?.winEnd });
+  }
+  const real = pts.filter(p => p.avg != null);
+  if(real.length < 2){ card.innerHTML = `<div class="trend-empty">Not enough data yet to plot a trend — check back after a few monitoring cycles.</div>`; return; }
+
+  const W = 1000, H = 200, padL = 46, padR = 12, padT = 14, padB = 20;
+  const maxV = Math.max(...real.map(p => p.avg));
+  const niceMax = Math.max(100, Math.ceil(maxV / 50) * 50);
+  const x = i => padL + (i / (n - 1)) * (W - padL - padR);
+  const y = v => padT + (1 - v / niceMax) * (H - padT - padB);
+
+  let d = '', started = false;
+  pts.forEach(p => {
+    if(p.avg == null){ started = false; return; }
+    d += (started ? ' L' : ' M') + x(p.i).toFixed(1) + ' ' + y(p.avg).toFixed(1);
+    started = true;
+  });
+  const areaPts = real.map(p => `${x(p.i).toFixed(1)},${y(p.avg).toFixed(1)}`).join(' ');
+  const area = `${x(real[0].i).toFixed(1)},${y(0).toFixed(1)} ${areaPts} ${x(real[real.length-1].i).toFixed(1)},${y(0).toFixed(1)}`;
+
+  const grid = [0, niceMax/2, niceMax].map(v =>
+    `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W-padR}" y2="${y(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text class="trend-axis" x="${padL-8}" y="${(y(v)+3).toFixed(1)}" text-anchor="end">${Math.round(v)}ms</text>`
+  ).join('');
+
+  // Invisible hover targets — one per bucket — drive the shared tooltip.
+  const hovers = real.map(p =>
+    `<rect x="${(x(p.i) - (W - padL - padR) / n / 2).toFixed(1)}" y="0" width="${((W - padL - padR) / n).toFixed(1)}" height="${H}" fill="transparent" data-trend-idx="${p.i}"/>` +
+    `<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.avg).toFixed(1)}" r="2.4" fill="var(--teal)" opacity="0"/>`
+  ).join('');
+
+  const startLabel = real[0].winStart ? new Date(real[0].winStart).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '';
+  card.innerHTML = `<svg class="trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Average response time trend across all services over the last 10 days, peak ${maxV} ms">
+    <defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14b8a6" stop-opacity="0.26"/><stop offset="1" stop-color="#14b8a6" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <polygon points="${area}" fill="url(#trendFill)"/>
+    <path d="${d.trim()}" fill="none" stroke="#14b8a6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${hovers}
+  </svg>
+  <div class="trend-legend"><span>${startLabel}</span><span>Now</span></div>`;
+
+  // Reuse the bar tooltip for the trend hover layer.
+  card.querySelectorAll('rect[data-trend-idx]').forEach(el => {
+    const idx = parseInt(el.dataset.trendIdx,10);
+    const p = pts[idx];
+    el.addEventListener('mouseenter', e => {
+      if(!p || p.avg == null) return;
+      showTooltip(e, {
+        state:'up', avgMs:p.avg, bestMs:null, worstMs:null, checks:0,
+        good:0, slow:0, down:0, uptime:null, quality:null,
+        winStart:p.winStart, winEnd:p.winEnd
+      });
+      ttStatus.textContent = '📈 Avg across all services';
+      ttStatus.className = 'tt-status up';
+    });
+    el.addEventListener('mouseleave', hideTooltip);
+  });
+}
+
+async function runAll(){
+  if(!SERVICES.length){
+    try{ await loadServices(); }
+    catch(e){ console.error('services.json unavailable', e.message); return; }
+  }
+  await Promise.all([fetchStatusJSON(), fetchHistoryCSV(), fetchIncidents(), fetchMaintenance()]);
+  renderGrid(); renderUptime(); renderMetrics(); renderGlobal(); renderSLA(); renderTrend(); renderSSLBanner();
+}
+
+runAll();
+// Underlying checks run every 10 minutes; refresh periodically to pick up new data.
+setInterval(runAll, 5 * 60 * 1000);
+</script>
+</body>
+</html>
