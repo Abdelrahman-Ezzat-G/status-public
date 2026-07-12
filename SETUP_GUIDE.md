@@ -1,11 +1,11 @@
-# Setup Guide — abdelrahman-ezzat-status
+# Setup Guide — status-public
 
 One-time steps to take this repository live at **https://status.abdelrahman-ezzat.com**.
 
 ## 1. GitHub Pages
 
 1. Go to **Settings → Pages**
-2. Under *Build and deployment*, set **Source** to **GitHub Actions**
+2. Under *Build and deployment*, set **Source** to **Deploy from a branch** → `main` / `/ (root)`
 3. Under *Custom domain*, enter `status.abdelrahman-ezzat.com` and save
 4. Wait for the DNS check to pass, then tick **Enforce HTTPS**
 
@@ -54,7 +54,7 @@ Trigger the monitor once manually: **Actions → Uptime Monitor → Run workflow
 
 - `data/status.json` gets real results (including SSL days-to-expiry)
 - the first history row lands in `data/history.csv`
-- the deploy workflow publishes the page
+- GitHub Pages republishes the page automatically with the new data
 
 From then on it runs automatically every 10 minutes.
 

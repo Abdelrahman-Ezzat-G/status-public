@@ -224,8 +224,7 @@ footer{max-width:980px;margin:0 auto;padding:20px 24px 40px;border-top:1px solid
 <noscript>
   <div style="max-width:980px;margin:0 auto;padding:20px 24px;text-align:center;color:#9ca3af;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
     This status page needs JavaScript to show live data. You can still read the latest results in
-    <a href="data/status.json" style="color:#14b8a6">status.json</a> or on the
-    <a href="https://github.com/Abdelrahman-Ezzat-G/abdelrahman-ezzat-status" style="color:#14b8a6">repository</a>.
+    <a href="data/status.json" style="color:#14b8a6">status.json</a>.
   </div>
 </noscript>
 
@@ -323,12 +322,11 @@ footer{max-width:980px;margin:0 auto;padding:20px 24px 40px;border-top:1px solid
         <path d="M2.5 13h4l2.2-5.5 3.6 9.5 2.7-6.5 1.6 2.5h4.9" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </span>
-    <span>© 2026 <a href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">Abdelrahman Ezzat</a> — Checks run automatically via GitHub Actions</span>
+    <span>© 2026 <a href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">Abdelrahman Ezzat</a> — Automated monitoring, 24/7</span>
   </div>
   <div class="footer-links">
     <a href="https://abdelrahman-ezzat.com" target="_blank" rel="noopener">Portfolio</a>
     <a href="https://www.quneva.com" target="_blank" rel="noopener">QuNeva</a>
-    <a href="https://github.com/Abdelrahman-Ezzat-G/abdelrahman-ezzat-status" target="_blank" rel="noopener">Source</a>
   </div>
 </footer>
 
@@ -353,10 +351,6 @@ function escapeHtml(s){
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   })[c]);
 }
-function safeUrl(u){
-  return (typeof u === 'string' && /^https:\/\/github\.com\//.test(u)) ? u : '#';
-}
-
 async function loadServices(){
   const res = await fetch('services.json?_=' + Date.now(), {cache:'no-cache'});
   const cfg = await res.json();
@@ -674,7 +668,7 @@ function renderGrid(){
       isUp = auth.status === 'up';
       isChecking = false;
       displayMs = Math.round(auth.response_time_s * 1000);
-      sourceLabel = `<span class="data-source">⚡ Live via Actions</span>`;
+      sourceLabel = `<span class="data-source">⚡ Live check</span>`;
     } else if(fallback){
       isUp = fallback.status === 'up';
       isChecking = false;
@@ -819,7 +813,7 @@ async function fetchStatusJSON(){
     const data = await res.json();
     if(data.services){
       Object.entries(data.services).forEach(([id,svc]) => authoritative[id] = svc);
-      if(data.timestamp) updateTimestamp('Actions ' + data.timestamp);
+      if(data.timestamp) updateTimestamp('as of ' + data.timestamp);
     }
   } catch(e){ console.warn('status.json unavailable', e.message); }
 }
@@ -921,13 +915,12 @@ async function fetchIncidents(){
         durationStr = mins < 60 ? ` · ${mins}m duration` : ` · ${Math.round(mins/60)}h ${mins%60}m duration`;
       }
       const title = escapeHtml(String(issue.title || '').replace(/^\[(Incident|Security)\]\s*/i,''));
-      const url = safeUrl(issue.html_url);
       const icon = isSecurity ? '🔐' : (isOpen ? '🔴' : '✅');
       const secBadge = isSecurity ? `<span class="incident-badge badge-security">Security</span>` : '';
       return `<div class="incident-item">
         <div class="incident-icon" aria-hidden="true">${icon}</div>
         <div class="incident-body">
-          <div class="incident-title"><a href="${url}" target="_blank" rel="noopener">${title}</a></div>
+          <div class="incident-title">${title}</div>
           <div class="incident-meta">${secBadge}<span class="incident-badge ${isOpen ? 'badge-open' : 'badge-closed'}">${isOpen ? 'Ongoing' : 'Resolved'}</span><span class="incident-time">${dateStr}${durationStr}</span></div>
         </div>
       </div>`;
@@ -952,12 +945,11 @@ async function fetchMaintenance(){
         const when = new Date(m.created_at);
         const dateStr = when.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + when.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
         const title = escapeHtml(m.title || 'Maintenance');
-        const url = safeUrl(m.html_url);
         const desc = m.body ? `<div class="maint-desc">${escapeHtml(m.body)}</div>` : '';
         return `<div class="maint-item">
           <div class="maint-icon" aria-hidden="true">🗓️</div>
           <div class="maint-body">
-            <div class="maint-title"><a href="${url}" target="_blank" rel="noopener">${title}</a></div>
+            <div class="maint-title">${title}</div>
             ${desc}
             <div class="maint-time">Posted ${dateStr}</div>
           </div>

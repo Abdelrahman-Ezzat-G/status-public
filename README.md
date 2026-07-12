@@ -1,7 +1,7 @@
 # Abdelrahman Ezzat — Status Page
 
 [![Status](https://img.shields.io/badge/status-operational-10b981)](https://status.abdelrahman-ezzat.com)
-[![Uptime Check](https://github.com/Abdelrahman-Ezzat-G/abdelrahman-ezzat-status/actions/workflows/uptime.yml/badge.svg)](https://github.com/Abdelrahman-Ezzat-G/abdelrahman-ezzat-status/actions/workflows/uptime.yml)
+[![Uptime Check](https://github.com/Abdelrahman-Ezzat-G/status-public/actions/workflows/uptime.yml/badge.svg)](https://github.com/Abdelrahman-Ezzat-G/status-public/actions/workflows/uptime.yml)
 
 Personal status page for [Abdelrahman Ezzat](https://abdelrahman-ezzat.com) — real-time uptime, response-time and **TLS certificate** monitoring for every personal & QuNeva service.
 
@@ -83,7 +83,7 @@ Create a GitHub Issue and add the **`maintenance`** label. While the issue is op
 ## Repository Structure
 
 ```
-abdelrahman-ezzat-status/
+status-public/
 ├── index.html                    ← Dashboard (hosted on GitHub Pages)
 ├── services.json                 ← Single source of truth for monitored services
 ├── 404.html                      ← Branded not-found page
@@ -101,8 +101,7 @@ abdelrahman-ezzat-status/
 │   ├── incidents.xml             ← Atom/RSS feed of incidents (auto-updated)
 │   └── maintenance.json          ← Open maintenance notices (auto-updated)
 └── .github/workflows/
-    ├── uptime.yml                ← Monitor (every 10 minutes)
-    └── deploy.yml                ← GitHub Pages deployment
+    └── uptime.yml                ← Monitor (every 10 minutes)
 ```
 
 ---

@@ -1,0 +1,457 @@
+name: Uptime Monitor
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: uptime-monitor
+  # Don't cancel an in-flight monitor run — every scheduled check should complete.
+  cancel-in-progress: false
+
+jobs:
+  check-uptime:
+    name: Check Services
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Run service checks
+        id: checks
+        run: |
+          mkdir -p data
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DATE=$(date -u +"%Y-%m-%d")
+          NOW_TS=$(date -u +%s)
+
+          COUNT=$(jq '.services | length' services.json)
+          SERVICES_JSON='{}'
+          CSV_HEADER="timestamp"
+          CSV_ROW="$TIMESTAMP"
+          DOWN_LIST=""
+          ALL_UP=true
+          SSL_WARN_LIST=""
+
+          for i in $(seq 0 $((COUNT - 1))); do
+            ID=$(jq -r ".services[$i].id" services.json)
+            NAME=$(jq -r ".services[$i].name" services.json)
+            URL=$(jq -r ".services[$i].url" services.json)
+            CHECK_URL=$(jq -r ".services[$i].check_url // .services[$i].url" services.json)
+            EXTRA_OK=$(jq -r "(.services[$i].extra_ok // []) | map(tostring) | join(\" \")" services.json)
+
+            OUT=$(curl -s -o /dev/null -w "%{http_code} %{time_total}" --max-time 15 --retry 2 --retry-delay 2 --location "$CHECK_URL") || OUT="0 0"
+            STATUS="${OUT%% *}"; TIME="${OUT##* }"
+            STATUS=$((10#${STATUS:-0}))
+            case "$TIME" in ''|*[!0-9.]*) TIME=0;; esac
+
+            RESULT="down"
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then RESULT="up"; fi
+            # Some services (e.g. Home Assistant behind an auth wall) legitimately
+            # answer 401/403 — the server responding at all means it is alive.
+            for CODE in $EXTRA_OK; do
+              if [ "$STATUS" = "$CODE" ]; then RESULT="up"; fi
+            done
+
+            # TLS certificate expiry (days remaining) — early warning for expiring
+            # or replaced certificates.
+            HOST=$(printf '%s' "$CHECK_URL" | sed -E 's|https?://([^/:]+).*|\1|')
+            SSL_DAYS="null"
+            SSL_EXPIRES=""
+            END=$(echo | timeout 20 openssl s_client -servername "$HOST" -connect "$HOST:443" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || END=""
+            if [ -n "$END" ]; then
+              END_TS=$(date -u -d "$END" +%s 2>/dev/null) || END_TS=""
+              if [ -n "$END_TS" ]; then
+                SSL_DAYS=$(( (END_TS - NOW_TS) / 86400 ))
+                SSL_EXPIRES=$(date -u -d "$END" +"%Y-%m-%d" 2>/dev/null) || SSL_EXPIRES=""
+                if [ "$SSL_DAYS" -le 10 ]; then
+                  SSL_WARN_LIST="$SSL_WARN_LIST$NAME (${SSL_DAYS}d left), "
+                fi
+              fi
+            fi
+
+            echo "$NAME: HTTP $STATUS in ${TIME}s (result=$RESULT, ssl=${SSL_DAYS}d)"
+
+            if [ "$RESULT" = "down" ]; then
+              ALL_UP=false
+              DOWN_LIST="$DOWN_LIST$NAME (HTTP $STATUS), "
+            fi
+
+            SERVICES_JSON=$(printf '%s' "$SERVICES_JSON" | jq \
+              --arg id "$ID" --arg name "$NAME" --arg url "$URL" \
+              --arg result "$RESULT" --arg ssl_expires "$SSL_EXPIRES" \
+              --argjson http "$STATUS" --argjson time "$TIME" --argjson ssl "$SSL_DAYS" \
+              '.[$id] = {name:$name, url:$url, status:$result, http_status:$http, response_time_s:$time, ssl_days_left:$ssl, ssl_expires:(if $ssl_expires == "" then null else $ssl_expires end)}')
+
+            CSV_HEADER="$CSV_HEADER,${ID}_result,${ID}_http,${ID}_time"
+            CSV_ROW="$CSV_ROW,$RESULT,$STATUS,$TIME"
+          done
+
+          printf '%s' "$SERVICES_JSON" | jq --arg ts "$TIMESTAMP" --arg d "$DATE" \
+            '{timestamp:$ts, date:$d, services:.}' > data/status.json
+
+          # Live history used by the dashboard (capped) + permanent monthly archive.
+          MONTH=$(date -u +"%Y-%m")
+          if [ ! -f data/history.csv ] || [ "$(head -n1 data/history.csv)" != "$CSV_HEADER" ]; then
+            echo "$CSV_HEADER" > data/history.csv
+          fi
+          echo "$CSV_ROW" >> data/history.csv
+          { head -n1 data/history.csv; tail -n +2 data/history.csv | tail -n 2000; } > data/history.tmp
+          mv data/history.tmp data/history.csv
+
+          ARCHIVE="data/history-archive-$MONTH.csv"
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "$CSV_HEADER" > "$ARCHIVE"
+          fi
+          echo "$CSV_ROW" >> "$ARCHIVE"
+
+          # Manifest of available archives so the dashboard fetches exactly what
+          # exists (no guessing, no 404s).
+          ls data/history-archive-*.csv 2>/dev/null \
+            | sed -E 's|.*history-archive-(.+)\.csv|\1|' \
+            | sort \
+            | jq -R -s 'split("\n") | map(select(length > 0))' \
+            > data/archives.json
+
+          echo "all_up=$ALL_UP" >> $GITHUB_OUTPUT
+          echo "down_list=${DOWN_LIST%, }" >> $GITHUB_OUTPUT
+          echo "ssl_warn_list=${SSL_WARN_LIST%, }" >> $GITHUB_OUTPUT
+
+      - name: Open incident if down
+        id: incident
+        if: steps.checks.outputs.all_up == 'false'
+        uses: actions/github-script@v8
+        env:
+          DOWN_LIST: ${{ steps.checks.outputs.down_list }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const down = process.env.DOWN_LIST;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'incident'
+            });
+
+            const alreadyOpen = existing.data.some(i => i.title.startsWith('[Incident]'));
+
+            if (!alreadyOpen) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[Incident] Service disruption: ${down}`,
+                labels: ['incident'],
+                body: `## 🔴 Service Disruption Detected\n\n**Time:** ${new Date().toISOString()}\n\n**Affected services:**\n${down.split(', ').map(d => `- ${d}`).join('\n')}\n\nThis issue was automatically created by the uptime monitor.\n\nLive status: https://status.abdelrahman-ezzat.com`
+              });
+              // Signal the email step that this is a NEW incident (avoids re-alerts on every run).
+              core.setOutput('created', 'true');
+            }
+
+      - name: Auto-close incident if all services recovered
+        id: recover
+        if: steps.checks.outputs.all_up == 'true'
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'incident'
+            });
+
+            const open = existing.data.filter(i => i.title.startsWith('[Incident]'));
+            for (const issue of open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `## ✅ All Systems Recovered\n\n**Time:** ${new Date().toISOString()}\n\nAll monitored services are back online. Closing this incident automatically.`
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
+            // Only signal recovery if we actually closed something (state changed).
+            if (open.length > 0) core.setOutput('recovered', 'true');
+
+      - name: Manage SSL expiry warnings
+        id: ssl
+        continue-on-error: true
+        uses: actions/github-script@v8
+        env:
+          SSL_WARN_LIST: ${{ steps.checks.outputs.ssl_warn_list }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const warn = (process.env.SSL_WARN_LIST || '').trim();
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ssl-expiry'
+            });
+
+            if (warn) {
+              if (!existing.data.length) {
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: `[Security] TLS certificate expiring soon: ${warn}`,
+                  labels: ['ssl-expiry'],
+                  body: `## 🔐 TLS Certificate Expiry Warning\n\n**Time:** ${new Date().toISOString()}\n\n**Certificates expiring within 10 days:**\n${warn.split(', ').map(d => `- ${d}`).join('\n')}\n\nRenew the certificate(s) before they expire to avoid an outage. This issue closes automatically once the certificates are renewed.`
+                });
+                core.setOutput('created', 'true');
+              }
+            } else {
+              for (const issue of existing.data) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `## ✅ Certificates Renewed\n\nAll monitored TLS certificates are valid for more than 10 days again. Closing automatically.`
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+              }
+            }
+
+      - name: Email alert on state change
+        if: always()
+        continue-on-error: true
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM || 'AE Status <status@abdelrahman-ezzat.com>' }}
+          MAIL_TO: ${{ secrets.MAIL_TO || 'abdelrahman-ezzat@outlook.com' }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp-mail.outlook.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          NEW_INCIDENT: ${{ steps.incident.outputs.created }}
+          DOWN_LIST: ${{ steps.checks.outputs.down_list }}
+          RECOVERED: ${{ steps.recover.outputs.recovered }}
+          NEW_SSL_WARNING: ${{ steps.ssl.outputs.created }}
+          SSL_WARN_LIST: ${{ steps.checks.outputs.ssl_warn_list }}
+        run: |
+          NOW=$(date -u +'%Y-%m-%d %H:%M UTC')
+          if [ "$NEW_INCIDENT" = "true" ]; then
+            export SUBJECT="[AE Status] 🔴 Service disruption: $DOWN_LIST"
+            export TEXT="A service disruption was detected.
+
+          Affected: $DOWN_LIST
+          Time: $NOW
+
+          Live status: https://status.abdelrahman-ezzat.com"
+          elif [ "$RECOVERED" = "true" ]; then
+            export SUBJECT="[AE Status] ✅ All systems recovered"
+            export TEXT="All monitored services are back online.
+
+          Time: $NOW
+
+          Live status: https://status.abdelrahman-ezzat.com"
+          elif [ "$NEW_SSL_WARNING" = "true" ]; then
+            export SUBJECT="[AE Status] 🔐 TLS certificate expiring soon: $SSL_WARN_LIST"
+            export TEXT="A monitored TLS certificate expires within 10 days.
+
+          Certificates: $SSL_WARN_LIST
+          Time: $NOW
+
+          Renew before expiry to avoid an outage.
+
+          Live status: https://status.abdelrahman-ezzat.com"
+          else
+            echo "No state change this run — no email."
+            exit 0
+          fi
+
+          # Preferred: Resend HTTP API (reliable transactional email)
+          if [ -n "$RESEND_API_KEY" ]; then
+            PAYLOAD=$(python3 -c 'import os,json; print(json.dumps({"from":os.environ["MAIL_FROM"],"to":[os.environ["MAIL_TO"]],"subject":os.environ["SUBJECT"],"text":os.environ["TEXT"]}))')
+            HTTP=$(curl -s -o /tmp/resend.json -w '%{http_code}' -X POST https://api.resend.com/emails \
+              -H "Authorization: Bearer $RESEND_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD")
+            echo "Resend responded HTTP $HTTP"
+            cat /tmp/resend.json 2>/dev/null || true
+            case "$HTTP" in
+              200|201) echo "Alert email sent to $MAIL_TO via Resend"; exit 0 ;;
+              *) echo "Resend send failed (HTTP $HTTP)" ;;
+            esac
+          fi
+
+          # Fallback: SMTP via curl, if configured
+          if [ -n "$MAIL_USERNAME" ] && [ -n "$MAIL_PASSWORD" ]; then
+            {
+              printf 'From: %s\r\n' "$MAIL_FROM"
+              printf 'To: %s\r\n' "$MAIL_TO"
+              printf 'Subject: %s\r\n' "$SUBJECT"
+              printf 'MIME-Version: 1.0\r\n'
+              printf 'Content-Type: text/plain; charset=UTF-8\r\n'
+              printf '\r\n%s\r\n' "$TEXT"
+            } > /tmp/mail.txt
+            if curl --silent --show-error --ssl-reqd \
+                 --url "smtp://$SMTP_HOST:$SMTP_PORT" \
+                 --user "$MAIL_USERNAME:$MAIL_PASSWORD" \
+                 --mail-from "$MAIL_USERNAME" --mail-rcpt "$MAIL_TO" \
+                 --upload-file /tmp/mail.txt; then
+              echo "Alert email sent to $MAIL_TO via SMTP"; exit 0
+            fi
+            echo "SMTP send failed"
+          fi
+
+          echo "No working email provider — set RESEND_API_KEY (recommended) or MAIL_USERNAME+MAIL_PASSWORD."
+
+      - name: Build incidents JSON
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const cutoff = Date.now() - 30 * 86400000;
+
+            const fetchLabel = async (label) => {
+              const [open, closed] = await Promise.all([
+                github.rest.issues.listForRepo({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  state: 'open', labels: label, per_page: 20
+                }),
+                github.rest.issues.listForRepo({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  state: 'closed', labels: label, per_page: 30,
+                  sort: 'updated', direction: 'desc'
+                })
+              ]);
+              return [...open.data, ...closed.data];
+            };
+
+            const raw = [...await fetchLabel('incident'), ...await fetchLabel('ssl-expiry')];
+            const seen = new Set();
+            const all = raw
+              .filter(i => !i.pull_request)
+              .filter(i => !seen.has(i.number) && seen.add(i.number))
+              .filter(i => new Date(i.created_at).getTime() >= cutoff)
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .map(i => ({
+                title: i.title,
+                html_url: i.html_url,
+                state: i.state,
+                created_at: i.created_at,
+                closed_at: i.closed_at
+              }));
+
+            fs.mkdirSync('data', { recursive: true });
+            fs.writeFileSync('data/incidents.json', JSON.stringify(all, null, 2) + '\n');
+            console.log(`Wrote ${all.length} incidents to data/incidents.json`);
+
+            // Atom feed so users can subscribe to incident updates.
+            // Built line-by-line (not a multiline template) to keep the XML free
+            // of the YAML block indentation.
+            const esc = s => String(s ?? '').replace(/[&<>"']/g, c => (
+              { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;' }[c]));
+            const site = 'https://status.abdelrahman-ezzat.com';
+            const updated = (all[0] && (all[0].closed_at || all[0].created_at)) || new Date().toISOString();
+            const L = [];
+            L.push('<?xml version="1.0" encoding="utf-8"?>');
+            L.push('<feed xmlns="http://www.w3.org/2005/Atom">');
+            L.push('  <title>Abdelrahman Ezzat Status — Incidents</title>');
+            L.push('  <link href="' + site + '/data/incidents.xml" rel="self"/>');
+            L.push('  <link href="' + site + '"/>');
+            L.push('  <id>' + site + '/</id>');
+            L.push('  <updated>' + new Date(updated).toISOString() + '</updated>');
+            for (const i of all) {
+              L.push('  <entry>');
+              L.push('    <title>' + esc(i.title) + '</title>');
+              L.push('    <link href="' + esc(i.html_url) + '"/>');
+              L.push('    <id>' + esc(i.html_url) + '</id>');
+              L.push('    <updated>' + new Date(i.closed_at || i.created_at).toISOString() + '</updated>');
+              L.push('    <published>' + new Date(i.created_at).toISOString() + '</published>');
+              L.push('    <summary>' + (i.state === 'open' ? 'Ongoing incident' : 'Resolved incident') + '</summary>');
+              L.push('  </entry>');
+            }
+            L.push('</feed>');
+            fs.writeFileSync('data/incidents.xml', L.join('\n') + '\n');
+            console.log(`Wrote Atom feed with ${all.length} entries to data/incidents.xml`);
+
+      - name: Build maintenance JSON
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            // Open issues labelled 'maintenance' are shown as maintenance notices.
+            const res = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'maintenance', per_page: 20,
+              sort: 'created', direction: 'desc'
+            });
+            const items = res.data
+              .filter(i => !i.pull_request)
+              .map(i => ({
+                title: i.title.replace(/^\[Maintenance\]\s*/i, ''),
+                html_url: i.html_url,
+                created_at: i.created_at,
+                body: (i.body || '').slice(0, 400)
+              }));
+            fs.mkdirSync('data', { recursive: true });
+            fs.writeFileSync('data/maintenance.json', JSON.stringify(items, null, 2) + '\n');
+            console.log(`Wrote ${items.length} maintenance notices to data/maintenance.json`);
+
+      - name: Commit status data
+        run: |
+          git config user.name "AE Status Bot"
+          git config user.email "status-bot@abdelrahman-ezzat.com"
+
+          git add data/
+
+          if git diff --staged --quiet; then
+            echo "No status changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: uptime check $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          for i in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+            if git push --force-with-lease origin HEAD:main; then
+              echo "Status data pushed successfully"
+              exit 0
+            fi
+            echo "Push failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+          echo "Failed to push status data after retries"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## ⏱ Uptime Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status | HTTP | Response | SSL days left |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|------|----------|---------------|" >> $GITHUB_STEP_SUMMARY
+          jq -r '.services | to_entries[] | "| \(.value.name) | \(.value.status) | \(.value.http_status) | \(.value.response_time_s)s | \(.value.ssl_days_left // "—") |"' data/status.json >> $GITHUB_STEP_SUMMARY
