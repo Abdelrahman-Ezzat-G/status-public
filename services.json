@@ -40,6 +40,15 @@
       "url": "https://status.quneva.com",
       "icon": "📊",
       "group": "QuNeva"
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "url": "https://fa.abdelrahman-ezzat.com",
+      "icon": "💰",
+      "extra_ok": [401, 403],
+      "slow_ms": 2000,
+      "group": "Personal"
     }
   ]
 }

@@ -127,7 +127,34 @@ jobs:
 
           # Live history used by the dashboard (capped) + permanent monthly archive.
           MONTH=$(date -u +"%Y-%m")
-          if [ ! -f data/history.csv ] || [ "$(head -n1 data/history.csv)" != "$CSV_HEADER" ]; then
+          NEWCOLS=$(echo "$CSV_HEADER" | awk -F, '{print NF}')
+
+          # When a service is added later the schema gains columns. Rather than
+          # reset history (losing data) or append mismatched-width rows (which
+          # corrupts the archive), migrate existing rows: keep every old value in
+          # place and pad new trailing columns as empty. Empty cells read as
+          # "no data" on the page, so a newly-added service shows a genuine gap
+          # for the period before it existed — never fake uptime.
+          # New services MUST be appended to the end of services.json so existing
+          # columns keep their positions.
+          migrate_widths() {
+            local f="$1"
+            [ -f "$f" ] || return 0
+            local oldhdr; oldhdr=$(head -n1 "$f")
+            [ "$oldhdr" = "$CSV_HEADER" ] && return 0
+            local oldcols; oldcols=$(echo "$oldhdr" | awk -F, '{print NF}')
+            if [ "$NEWCOLS" -gt "$oldcols" ]; then
+              { echo "$CSV_HEADER"
+                tail -n +2 "$f" | awk -F, -v n="$NEWCOLS" 'BEGIN{OFS=","}{for(i=NF+1;i<=n;i++)$i="";print}'
+              } > "$f.mig" && mv "$f.mig" "$f"
+            else
+              # Reorder/removal — can't be padded safely; start a fresh header.
+              echo "$CSV_HEADER" > "$f"
+            fi
+          }
+
+          migrate_widths data/history.csv
+          if [ ! -f data/history.csv ]; then
             echo "$CSV_HEADER" > data/history.csv
           fi
           echo "$CSV_ROW" >> data/history.csv
@@ -135,6 +162,7 @@ jobs:
           mv data/history.tmp data/history.csv
 
           ARCHIVE="data/history-archive-$MONTH.csv"
+          migrate_widths "$ARCHIVE"
           if [ ! -f "$ARCHIVE" ]; then
             echo "$CSV_HEADER" > "$ARCHIVE"
           fi

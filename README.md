@@ -18,8 +18,9 @@ Personal status page for [Abdelrahman Ezzat](https://abdelrahman-ezzat.com) — 
 | QuNeva Platform | https://quneva.com | probes `/healthz` (bot-protection exempt) |
 | QuNeva AI | https://ai.quneva.com | |
 | QuNeva Status Page | https://status.quneva.com | |
+| Finance | https://fa.abdelrahman-ezzat.com | 401/403 count as *up* (behind login) |
 
-All services are defined in **one file — [`services.json`](services.json)** — used by both the monitor workflow and the dashboard.
+All services are defined in **one file — [`services.json`](services.json)** — used by both the monitor workflow and the dashboard. New services must be **appended to the end** so existing history columns keep their positions; the monitor migrates the history/archive schema automatically and the page shows a genuine "no data" gap for the period before a service was added.
 
 ---
 
