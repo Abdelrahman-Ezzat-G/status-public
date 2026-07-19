@@ -16,6 +16,7 @@
       "url": "https://ha.abdelrahman-ezzat.com",
       "icon": "🏠",
       "extra_ok": [401, 403],
+      "slow_ms": 2000,
       "group": "Personal"
     },
     {

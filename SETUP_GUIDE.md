@@ -56,7 +56,7 @@ Trigger the monitor once manually: **Actions → Uptime Monitor → Run workflow
 - the first history row lands in `data/history.csv`
 - GitHub Pages republishes the page automatically with the new data
 
-From then on it runs automatically every 10 minutes.
+From then on it runs automatically (quarter-hourly cron; GitHub runs it best-effort, typically every 15-60 minutes).
 
 ## Troubleshooting
 

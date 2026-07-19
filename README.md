@@ -25,7 +25,7 @@ All services are defined in **one file — [`services.json`](services.json)** �
 
 ## How It Works
 
-- **GitHub Actions** runs checks every **10 minutes** (`uptime.yml`), driven entirely by `services.json`
+- **GitHub Actions** runs checks on a quarter-hourly cron (`uptime.yml`), driven entirely by `services.json`. GitHub schedules are best-effort, so real runs land every ~15-60 minutes; the page shows the observed cadence and warns if data goes stale
 - Each check records HTTP status, response time and **TLS certificate days-to-expiry**
 - Results are saved to `data/status.json`, `data/history.csv` and monthly `data/history-archive-YYYY-MM.csv`
 - **GitHub Pages** hosts the dashboard (`index.html`) at the custom domain
@@ -54,6 +54,7 @@ Add one entry to `services.json` — that's it. The workflow and dashboard both 
 
 - `check_url` (optional) — probe a different URL than the one displayed
 - `extra_ok` (optional) — HTTP codes outside 200–399 that still count as *up*
+- `slow_ms` (optional) — per-service "slow" threshold in ms (default 800); use for services with a naturally higher baseline so they aren't permanently flagged as degraded
 - `group` (optional) — small badge shown on the service card
 
 The history CSV is header-mapped, so adding/reordering services never corrupts old data.
@@ -101,7 +102,7 @@ status-public/
 │   ├── incidents.xml             ← Atom/RSS feed of incidents (auto-updated)
 │   └── maintenance.json          ← Open maintenance notices (auto-updated)
 └── .github/workflows/
-    └── uptime.yml                ← Monitor (every 10 minutes)
+    └── uptime.yml                ← Monitor (quarter-hourly cron, best-effort)
 ```
 
 ---

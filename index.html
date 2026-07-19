@@ -337,6 +337,9 @@ const GOOD_LIMIT_MS = 800;
 
 let SERVICES = [];          // loaded from services.json (single source of truth)
 let CSV_COLS = {};          // id -> column index, resolved from the CSV header row
+let SLOW_LIMITS = {};       // id -> per-service slow threshold in ms (services.json slow_ms)
+let statusTimestamp = null; // when the monitor actually last ran (from status.json)
+let medianGapMin = null;    // observed cadence between checks, derived from history
 
 const authoritative = {};   // current status from status.json (written by Actions)
 const csvLatest = {};       // fallback: current status derived from the newest CSV row
@@ -355,6 +358,8 @@ async function loadServices(){
   const res = await fetch('services.json?_=' + Date.now(), {cache:'no-cache'});
   const cfg = await res.json();
   SERVICES = cfg.services;
+  SLOW_LIMITS = {};
+  SERVICES.forEach(s => SLOW_LIMITS[s.id] = s.slow_ms || GOOD_LIMIT_MS);
 }
 
 function parseCSV(text){
@@ -373,37 +378,39 @@ function parseCSV(text){
     .sort((a,b) => new Date(a[0]) - new Date(b[0]));
 }
 
-function classifyCheck(row,colIdx){
+function classifyCheck(row,colIdx,slowMs){
   const result = row[colIdx]?.trim();
   const sec = parseFloat(row[colIdx + 2]);
   const ms = !isNaN(sec) && sec > 0 ? Math.round(sec * 1000) : null;
 
   // 'down' means unreachable only — latency never counts against uptime.
   // Slowness is reflected in the quality score, bar colour and bar height.
+  // The threshold is per-service (services.json slow_ms) so services with a
+  // naturally higher baseline aren't permanently flagged as degraded.
   if(result === 'down') return { type:'down', ms };
-  if(ms !== null && ms >= GOOD_LIMIT_MS) return { type:'slow', ms };
+  if(ms !== null && ms >= (slowMs || GOOD_LIMIT_MS)) return { type:'slow', ms };
   return { type:'good', ms };
 }
 
-function calcUptimePeriod(rows,colIdx,daysAgo){
+function calcUptimePeriod(rows,colIdx,daysAgo,slowMs){
   const cutoff = Date.now() - daysAgo * 86400000;
   const filtered = rows.filter(r => new Date(r[0]).getTime() >= cutoff);
   if(!filtered.length) return null;
   let up = 0;
   filtered.forEach(r => {
-    const c = classifyCheck(r,colIdx);
+    const c = classifyCheck(r,colIdx,slowMs);
     if(c.type !== 'down') up++;
   });
   return ((up / filtered.length) * 100).toFixed(1);
 }
 
-function calcQualityPeriod(rows,colIdx,daysAgo){
+function calcQualityPeriod(rows,colIdx,daysAgo,slowMs){
   const cutoff = Date.now() - daysAgo * 86400000;
   const filtered = rows.filter(r => new Date(r[0]).getTime() >= cutoff);
   if(!filtered.length) return null;
   let score = 0;
   filtered.forEach(r => {
-    const c = classifyCheck(r,colIdx);
+    const c = classifyCheck(r,colIdx,slowMs);
     if(c.type === 'good') score += 1;
     else if(c.type === 'slow') score += 0.5;
   });
@@ -432,7 +439,7 @@ function buildGradientVertical(good, slow, down){
   return `linear-gradient(to top, ${stops.join(', ')})`;
 }
 
-function buildBarHistory(rows,colIdx){
+function buildBarHistory(rows,colIdx,slowMs){
   const now = Date.now();
   const bars = [];
 
@@ -457,7 +464,7 @@ function buildBarHistory(rows,colIdx){
     const times = [];
 
     bucket.forEach(r => {
-      const c = classifyCheck(r,colIdx);
+      const c = classifyCheck(r,colIdx,slowMs);
       if(c.type === 'down') down++;
       else if(c.type === 'slow') slow++;
       else good++;
@@ -589,11 +596,32 @@ function attachBarEvents(){
   });
 }
 
-function msColor(ms){
+function msColor(ms, slow){
+  const limit = slow || GOOD_LIMIT_MS;
   if(!ms) return 'var(--muted)';
-  if(ms < 800) return 'var(--green)';
-  if(ms < 1500) return 'var(--yellow)';
+  if(ms < limit) return 'var(--green)';
+  if(ms < limit * 2) return 'var(--yellow)';
   return 'var(--red)';
+}
+
+const STALE_FLOOR_MIN = 90;
+function staleAgeMin(){
+  if(!statusTimestamp || isNaN(statusTimestamp)) return null;
+  return Math.max(0, Math.round((Date.now() - statusTimestamp.getTime()) / 60000));
+}
+function isStale(){
+  const age = staleAgeMin();
+  if(age === null) return false;
+  // Stale = well beyond the cadence the monitor actually achieves.
+  const limit = Math.max(STALE_FLOOR_MIN, (medianGapMin || 30) * 3);
+  return age > limit;
+}
+function fmtAgo(mins){
+  if(mins === null) return '';
+  if(mins < 1) return 'just now';
+  if(mins < 60) return mins + ' min ago';
+  if(mins < 48 * 60) return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm ago';
+  return Math.floor(mins / 1440) + ' days ago';
 }
 function scoreColor(score){
   if(score === null || score === undefined) return 'var(--muted)';
@@ -668,7 +696,9 @@ function renderGrid(){
       isUp = auth.status === 'up';
       isChecking = false;
       displayMs = Math.round(auth.response_time_s * 1000);
-      sourceLabel = `<span class="data-source">⚡ Live check</span>`;
+      sourceLabel = isStale()
+        ? `<span class="data-source" style="color:var(--yellow);background:var(--yellow-bg);border-color:rgba(245,158,11,.25)">⏳ Last known state</span>`
+        : `<span class="data-source">⚡ Live check</span>`;
     } else if(fallback){
       isUp = fallback.status === 'up';
       isChecking = false;
@@ -684,7 +714,7 @@ function renderGrid(){
 
     // The chip reflects the LATEST check only — history (including transient
     // blips inside the current 6h window) is told by the bars, not the chip.
-    const isCurrentSlow = isUp && displayMs !== null && displayMs >= GOOD_LIMIT_MS;
+    const isCurrentSlow = isUp && displayMs !== null && displayMs >= (SLOW_LIMITS[svc.id] || GOOD_LIMIT_MS);
     const isCurrentDown = !isUp;
 
     const cardClass = isChecking ? 'card-checking' : (isCurrentDown ? 'card-down' : isCurrentSlow ? 'card-degraded' : 'card-up');
@@ -726,7 +756,7 @@ function renderGrid(){
 
       <div class="sc-footer">
         <div>
-          <div class="sc-ms" style="color:${msColor(displayMs)}">${fmtMs(displayMs)}</div>
+          <div class="sc-ms" style="color:${msColor(displayMs, SLOW_LIMITS[svc.id])}">${fmtMs(displayMs)}</div>
           <div class="sc-ms-label">Current response</div>
         </div>
         <div class="sc-uptime">
@@ -794,16 +824,23 @@ function renderGlobal(){
     text.textContent = 'Monitoring warming up — first check pending';
   } else if(anyDown){
     badge.className = 'hero-badge badge-outage';
-    text.textContent = 'Partial Outage Detected';
+    text.textContent = 'Partial Outage Detected' + (isStale() ? ' (data ' + fmtAgo(staleAgeMin()) + ')' : '');
+  } else if(isStale()){
+    // A dead monitor must never masquerade as "all operational".
+    badge.className = 'hero-badge badge-degraded';
+    text.textContent = 'Monitoring data is stale — last check ' + fmtAgo(staleAgeMin());
   } else {
     badge.className = 'hero-badge badge-operational';
     text.textContent = 'All Systems Operational';
   }
 }
-function updateTimestamp(src){
-  document.getElementById('lastUpdated').textContent =
-    'Last checked: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
-    + ' · ' + src + ' · Checks run every 10 minutes';
+function updateTimestamp(){
+  const el = document.getElementById('lastUpdated');
+  const age = staleAgeMin();
+  if(age === null){ el.textContent = 'Waiting for the first check…'; return; }
+  const when = statusTimestamp.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  const cadence = medianGapMin ? ' · checks land every ~' + medianGapMin + ' min' : '';
+  el.textContent = 'Last check: ' + when + ' (' + fmtAgo(age) + ')' + cadence;
 }
 
 async function fetchStatusJSON(){
@@ -813,7 +850,7 @@ async function fetchStatusJSON(){
     const data = await res.json();
     if(data.services){
       Object.entries(data.services).forEach(([id,svc]) => authoritative[id] = svc);
-      if(data.timestamp) updateTimestamp('as of ' + data.timestamp);
+      if(data.timestamp) statusTimestamp = new Date(data.timestamp);
     }
   } catch(e){ console.warn('status.json unavailable', e.message); }
 }
@@ -866,19 +903,32 @@ async function fetchHistoryCSV(){
     allRows = [...byTs.values()].sort((a,b) => new Date(a[0]) - new Date(b[0]));
     if(!allRows.length) return;
 
+    // Observed cadence between checks — GitHub schedules are best-effort, so
+    // the real interval is measured from history, not assumed from the cron.
+    const recent = allRows.slice(-40);
+    if(recent.length >= 3){
+      const gaps = [];
+      for(let i = 1; i < recent.length; i++){
+        gaps.push((new Date(recent[i][0]) - new Date(recent[i-1][0])) / 60000);
+      }
+      gaps.sort((a,b) => a - b);
+      medianGapMin = Math.round(gaps[Math.floor(gaps.length / 2)]);
+    }
+
     const lastRow = allRows[allRows.length - 1];
     for(const [id,colIdx] of Object.entries(CSV_COLS)){
+      const slowMs = SLOW_LIMITS[id];
       uptimePct[id] = {
-        d7: calcUptimePeriod(allRows,colIdx,7),
-        d30: calcUptimePeriod(allRows,colIdx,30),
-        d90: calcUptimePeriod(allRows,colIdx,90),
+        d7: calcUptimePeriod(allRows,colIdx,7,slowMs),
+        d30: calcUptimePeriod(allRows,colIdx,30,slowMs),
+        d90: calcUptimePeriod(allRows,colIdx,90,slowMs),
       };
       qualityPct[id] = {
-        d7: calcQualityPeriod(allRows,colIdx,7),
-        d30: calcQualityPeriod(allRows,colIdx,30),
-        d90: calcQualityPeriod(allRows,colIdx,90),
+        d7: calcQualityPeriod(allRows,colIdx,7,slowMs),
+        d30: calcQualityPeriod(allRows,colIdx,30,slowMs),
+        d90: calcQualityPeriod(allRows,colIdx,90,slowMs),
       };
-      barHistory[id] = buildBarHistory(allRows,colIdx);
+      barHistory[id] = buildBarHistory(allRows,colIdx,slowMs);
 
       const result = lastRow[colIdx]?.trim();
       if(result){
@@ -1035,6 +1085,7 @@ async function runAll(){
     catch(e){ console.error('services.json unavailable', e.message); return; }
   }
   await Promise.all([fetchStatusJSON(), fetchHistoryCSV(), fetchIncidents(), fetchMaintenance()]);
+  updateTimestamp();
   renderGrid(); renderUptime(); renderMetrics(); renderGlobal(); renderSLA(); renderTrend(); renderSSLBanner();
 }
 

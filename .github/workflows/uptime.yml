@@ -2,7 +2,10 @@ name: Uptime Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Off-peak minutes — :00/:10/:20 crons are the most congested slots on
+    # GitHub's shared runners and get delayed the longest. Scheduling is
+    # best-effort either way; expect ~15-60 min between actual runs.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -42,6 +45,24 @@ jobs:
           ALL_UP=true
           SSL_WARN_LIST=""
 
+          probe() {
+            local out
+            out=$(curl -s -o /dev/null -w "%{http_code} %{time_total}" --max-time 15 --retry 2 --retry-delay 2 --location "$1") || out="0 0"
+            printf '%s' "$out"
+          }
+
+          # Uses STATUS and EXTRA_OK from the caller's scope.
+          eval_result() {
+            local r="down"
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then r="up"; fi
+            # Some services (e.g. Home Assistant behind an auth wall) legitimately
+            # answer 401/403 — the server responding at all means it is alive.
+            for CODE in $EXTRA_OK; do
+              if [ "$STATUS" = "$CODE" ]; then r="up"; fi
+            done
+            printf '%s' "$r"
+          }
+
           for i in $(seq 0 $((COUNT - 1))); do
             ID=$(jq -r ".services[$i].id" services.json)
             NAME=$(jq -r ".services[$i].name" services.json)
@@ -49,18 +70,23 @@ jobs:
             CHECK_URL=$(jq -r ".services[$i].check_url // .services[$i].url" services.json)
             EXTRA_OK=$(jq -r "(.services[$i].extra_ok // []) | map(tostring) | join(\" \")" services.json)
 
-            OUT=$(curl -s -o /dev/null -w "%{http_code} %{time_total}" --max-time 15 --retry 2 --retry-delay 2 --location "$CHECK_URL") || OUT="0 0"
+            OUT=$(probe "$CHECK_URL")
             STATUS="${OUT%% *}"; TIME="${OUT##* }"
             STATUS=$((10#${STATUS:-0}))
             case "$TIME" in ''|*[!0-9.]*) TIME=0;; esac
+            RESULT=$(eval_result)
 
-            RESULT="down"
-            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then RESULT="up"; fi
-            # Some services (e.g. Home Assistant behind an auth wall) legitimately
-            # answer 401/403 — the server responding at all means it is alive.
-            for CODE in $EXTRA_OK; do
-              if [ "$STATUS" = "$CODE" ]; then RESULT="up"; fi
-            done
+            # A single failed probe can be a transient network blip; confirm
+            # before declaring an outage (which opens an incident + emails).
+            if [ "$RESULT" = "down" ]; then
+              echo "$NAME appears down (HTTP $STATUS) — re-checking in 20s to confirm"
+              sleep 20
+              OUT=$(probe "$CHECK_URL")
+              STATUS="${OUT%% *}"; TIME="${OUT##* }"
+              STATUS=$((10#${STATUS:-0}))
+              case "$TIME" in ''|*[!0-9.]*) TIME=0;; esac
+              RESULT=$(eval_result)
+            fi
 
             # TLS certificate expiry (days remaining) — early warning for expiring
             # or replaced certificates.
