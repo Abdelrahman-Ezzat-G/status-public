@@ -1,0 +1,28 @@
+name: Test Email
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send a test email via Resend
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM || 'AE Status <status@abdelrahman-ezzat.com>' }}
+          MAIL_TO: ${{ secrets.MAIL_TO || 'abdelrahman-ezzat@outlook.com' }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "RESULT: NO_KEY"; exit 1
+          fi
+          NOW=$(date -u +'%Y-%m-%d %H:%M UTC')
+          PAYLOAD=$(python3 -c 'import os,json; print(json.dumps({"from":os.environ["MAIL_FROM"],"to":[os.environ["MAIL_TO"]],"subject":"[Status] Test email — pipeline OK","text":"One-off test confirming the status monitor can send email via Resend.\nSent: '"$NOW"'\nIf you received this, alerts will work."}))')
+          HTTP=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD")
+          echo "Resend HTTP: $HTTP"
+          echo "Resend body: $(cat /tmp/r.json)"
+          case "$HTTP" in
+            200|201) echo "RESULT: SUCCESS — email accepted and sent to $MAIL_TO" ;;
+            *) echo "RESULT: FAIL ($HTTP) — see body above"; exit 1 ;;
+          esac
