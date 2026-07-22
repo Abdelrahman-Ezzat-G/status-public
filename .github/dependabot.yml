@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used by the uptime workflow security-patched.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
